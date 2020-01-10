@@ -1,0 +1,73 @@
+1. Adding Login and Identity Database
+Right Click Click on Add>New Scaffold Package>Identity>Identity
+Select the files which you want to add like Login,Logout or Select Override all files.
+This will generate all the selected views and respective controller etc.This will add ScaffoldingReadme.txt.
+
+IdentityHostingStartup files contains settings for database. You can configure Connection string here and add the same connection string in
+appsettings.json
+
+Open Nuget Pckage Manager> Package manager Console
+type
+
+ Add-Migration CreateIdentitySchema
+ Update-Database
+
+Add the below code in ConfigureSevices in StartUp.cs.
+   var key = Encoding.UTF8.GetBytes(Configuration["Tokens:key"]);
+   services.AddAuthentication
+            .AddCookie(cfg => cfg.SlidingExpiration = true)  //Adding Cookie Authentication
+            .AddJwtBearer(x =>
+            {
+                x.RequireHttpsMetadata = false;
+                x.SaveToken = true;
+                x.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = false,
+                    ValidateAudience = false
+                };
+            });
+
+Add app.UseAuthentication() in Configure method.
+
+Create User Controller to create JWT Token
+        [AllowAnonymous]
+        [HttpPost("authenticate")]
+        public async Task<IActionResult> Authenticate([FromBody]User userParam)
+        {
+
+
+            var result = await _signInManager.PasswordSignInAsync(userParam.Email, userParam.Password, false, lockoutOnFailure: true);
+            if (result.Succeeded)
+            {
+
+                var claims = new[]{
+                                   new Claim(JwtRegisteredClaimNames.Sub, userParam.Email),
+                                   new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                };
+
+                var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Tokens:Key"]));
+
+
+                var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+                var token = new JwtSecurityToken(_config["Tokens:Issuer"],
+                           _config["Tokens:Issuer"],
+                           claims,
+                           expires: DateTime.Now.AddMinutes(30),
+                           signingCredentials: creds);
+
+
+                return Ok(new { token = new JwtSecurityTokenHandler().WriteToken(token) });
+            }
+            return BadRequest("Could not create token");
+        }
+        
+    Decorate your APIController like below to use JWT authentication
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    [Route("api/[controller]")]
+    [ApiController]
+    public class CustomerController : ControllerBase
+    {
+    
