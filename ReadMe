@@ -6,7 +6,7 @@ This will generate all the selected views and respective controller etc.This wil
 IdentityHostingStartup files contains settings for database. You can configure Connection string here and add the same connection string in
 appsettings.json
 
-Open Nuget Pckage Manager> Package manager Console
+Open Nuget Package Manager> Package manager Console
 type
 
  Add-Migration CreateIdentitySchema
